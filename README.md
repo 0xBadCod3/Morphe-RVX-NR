@@ -1,3 +1,5 @@
+> [!NOTE]
+> This repository is a specialized template of [FiorenMas/Revanced-And-Revanced-Extended-Non-Root](https://github.com/FiorenMas/Revanced-And-Revanced-Extended-Non-Root), optimized for easier usage with **Obtainium**. In addition to the default project behavior, this version publishes each application to its own individual release for streamlined updates and management.
 
 <h4 align="center">
 They are open-source scripts for patching various apps like YouTube, YouTube Music... However, they are very difficult to use for most users. That's why I created this repository to provide an easier way.
