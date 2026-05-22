@@ -1,0 +1,61 @@
+name: 0. Reset Release
+permissions: write-all
+on:
+  workflow_dispatch:
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Delete all releases and tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "[+] Fetching all releases..."
+          releases=$(gh release list --limit 1000 | awk '{print $1}')
+
+          if [ -n "$releases" ]; then
+            for tag in $releases; do
+              echo "[+] Deleting release and tag: $tag"
+              gh release delete "$tag" --yes --cleanup-tag || true
+            done
+          else
+            echo "[*] No releases found to delete."
+          fi
+
+          # In case there are tags without releases
+          echo "[+] Fetching remaining tags..."
+          tags=$(git ls-remote --tags origin | awk -F/ '{print $3}' | grep -v "\^{}" || true)
+          if [ -n "$tags" ]; then
+            for tag in $tags; do
+               echo "[+] Deleting orphan tag: $tag"
+               git push origin --delete "$tag" || true
+            done
+          else
+            echo "[*] No orphan tags found to delete."
+          fi
+
+      - name: Trigger all manual patches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "[+] Extracting options from manual-patch.yml..."
+          # Extract the list of options from the choice input in manual-patch.yml
+          # Using sed to remove leading spaces, the hyphen, and surrounding single/double quotes
+          OPTIONS=$(grep -A 25 "options:" .github/workflows/manual-patch.yml | grep "^[[:space:]]*-" | sed "s/^[[:space:]]*- //; s/^'//; s/'$//; s/^\"//; s/\"$//")
+
+          echo "[+] Found options:"
+          echo "$OPTIONS"
+
+          echo "$OPTIONS" | while IFS= read -r opt; do
+            [ -z "$opt" ] && continue
+            echo "[+] Triggering manual patch for: \"$opt\""
+            gh workflow run "1. Manual Patch" --field org="$opt"
+            # Sleep a bit to avoid hitting rate limits or triggering too many concurrent runs too fast
+            sleep 2
+          done
+
+          echo "[+] All patches triggered. Individual releases will follow automatically."
