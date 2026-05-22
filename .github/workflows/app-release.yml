@@ -1,0 +1,23 @@
+name: 4. Individual App Release
+permissions: write-all
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_run:
+    workflows: ["1. Manual Patch", "2. Check new patch", "3. Another Patch"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      
+      - name: Individual App Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash src/build/app-release.sh
