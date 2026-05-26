@@ -149,4 +149,7 @@ for apk in *.apk; do
 done
 cd ..
 
+echo "[+] Ensuring 'all' release is marked as latest..."
+gh release edit all --latest || true
+
 echo "[+] Individual App Release process completed."
