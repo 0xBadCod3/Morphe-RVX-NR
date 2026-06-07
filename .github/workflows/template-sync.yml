@@ -1,29 +1,134 @@
-name: 5. Template Sync
+name: 5) Template Sync
+
 on:
   schedule:
-    - cron: "0 0 * * *" # Every day at midnight
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+# CONFIGURATION
+env:
+  # "true"  → use PAT_TOKEN secret for transport
+  # "false" → use default GITHUB_TOKEN
+  USE_PAT: "true"
+  
+  # Repos & Branches
+  UPSTREAM_REPO: "https://github.com/FiorenMas/Revanced-And-Revanced-Extended-Non-Root.git"
+  UPSTREAM_BRANCH: "main"
+  ORIGIN_BRANCH: "main"
 
 jobs:
-  repo-sync:
+  sync:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
 
-      - name: actions-template-sync
-        uses: AndreasAugustin/actions-template-sync@v2
+    steps:
+      - name: Resolve auth token
+        id: auth
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ env.USE_PAT }}" = "true" ]; then
+            if [ -z "$PAT_TOKEN" ]; then
+              echo "❌ USE_PAT is true but PAT_TOKEN secret is not set"
+              exit 1
+            fi
+            echo "🔑 Using PAT_TOKEN for transport"
+            echo "token=$PAT_TOKEN" >> $GITHUB_OUTPUT
+          else
+            echo "🔑 Using default GITHUB_TOKEN for transport"
+            echo "token=$GITHUB_TOKEN" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
         with:
-          source_repo_path: FiorenMas/Revanced-And-Revanced-Extended-Non-Root
-          upstream_branch: main
-          pr_labels: template-sync
-          pr_title: "[Sync] Sync with upstream"
-          pr_commit_msg: "chore(template): merge template changes"
-          source_gh_token: ${{ secrets.PAT_TOKEN }}
-          target_gh_token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ steps.auth.outputs.token }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Using the real bot email ensures commits show the verified
+
+      - name: Configure push URL for origin (PAT transport, bot identity)
+        if: env.USE_PAT == 'true'
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          ORIGIN_URL=$(git remote get-url origin)
+          AUTHED_ORIGIN=$(echo "$ORIGIN_URL" | sed "s|https://|https://x-access-token:${PAT_TOKEN}@|")
+          git remote set-url origin "$AUTHED_ORIGIN"
+          echo "🔑 Origin push URL updated to use PAT (identity stays as bot)"
+
+      - name: Write .gitattributes from secret
+        id: gitattributes
+        env:
+          GITATTRIBUTES: ${{ secrets.GITATTRIBUTES }}
+        run: |
+          if [ -z "$GITATTRIBUTES" ]; then
+            echo "⚠️ GITATTRIBUTES secret is not set — skipping .gitattributes"
+            echo "has_gitattributes=false" >> $GITHUB_OUTPUT
+          else
+            echo "$GITATTRIBUTES" > .gitattributes
+            echo "✅ .gitattributes written from secret ($(wc -l < .gitattributes) lines)"
+            echo "has_gitattributes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Apply .gitattributes rules to working tree
+        if: steps.gitattributes.outputs.has_gitattributes == 'true'
+        run: |
+          git add --renormalize .
+          echo "✅ Working tree re-normalized against .gitattributes"
+
+      - name: Add upstream remote
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          if [ "${{ env.USE_PAT }}" = "true" ]; then
+            AUTHED_URL=$(echo "${{ env.UPSTREAM_REPO }}" | sed "s|https://|https://x-access-token:${PAT_TOKEN}@|")
+            git remote add upstream "$AUTHED_URL"
+          else
+            git remote add upstream ${{ env.UPSTREAM_REPO }}
+          fi
+
+      - name: Fetch upstream & check for new commits
+        id: fetch
+        run: |
+          git fetch upstream
+
+          LOCAL=$(git rev-parse origin/${{ env.ORIGIN_BRANCH }})
+          UPSTREAM=$(git rev-parse upstream/${{ env.UPSTREAM_BRANCH }})
+
+          echo "origin/${{ env.ORIGIN_BRANCH }}   → $LOCAL"
+          echo "upstream/${{ env.UPSTREAM_BRANCH }} → $UPSTREAM"
+
+          if [ "$LOCAL" = "$UPSTREAM" ]; then
+            echo "✅ Already up to date — nothing to do"
+            echo "has_new_commits=false" >> $GITHUB_OUTPUT
+          else
+            AHEAD=$(git rev-list --count origin/${{ env.ORIGIN_BRANCH }}..upstream/${{ env.UPSTREAM_BRANCH }})
+            echo "🆕 $AHEAD new commit(s) found on upstream"
+            echo "has_new_commits=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rebase onto upstream
+        if: steps.fetch.outputs.has_new_commits == 'true'
+        run: |
+          if ! git rebase upstream/${{ env.UPSTREAM_BRANCH }}; then
+            git rebase --abort
+            echo "::error::Merge conflict detected — rebase against upstream/${{ env.UPSTREAM_BRANCH }} failed. Manual intervention required."
+            exit 1
+          fi
+
+      - name: Stage .gitattributes and commit if changed
+        if: steps.fetch.outputs.has_new_commits == 'true' && steps.gitattributes.outputs.has_gitattributes == 'true'
+        run: |
+          git add .gitattributes
+          git diff --cached --quiet || git commit -m "chore: apply .gitattributes from secrets"
+
+      - name: Push to origin
+        if: steps.fetch.outputs.has_new_commits == 'true'
+        run: |
+          git push --force-with-lease origin ${{ env.ORIGIN_BRANCH }}
+          echo "✅ Pushed to origin/${{ env.ORIGIN_BRANCH }}"
