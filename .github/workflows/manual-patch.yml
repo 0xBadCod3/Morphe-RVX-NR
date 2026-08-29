@@ -1,0 +1,68 @@
+name: 1. Manual Patch
+permissions: write-all
+on:
+  workflow_call:
+    inputs:
+      org:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      org:
+        description: 'Organization'
+        required: true
+        type: choice
+        options:
+          - 'BadCode'
+          - 'rushiranpise'
+
+jobs:
+  patch_BadCode:
+    name: Patch BadCode
+    if: ${{ github.event.inputs.org == 'BadCode' || inputs.org == 'BadCode' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Preparing to patch
+        uses: ./.github/actions/preparing
+      - name: Check github connection
+        id: check-gh-badcode
+        run: bash src/etc/connection.sh
+      - name: Patch apk
+        id: patch-badcode
+        if: steps.check-gh-badcode.outputs.internet_error == '0'
+        run: bash src/build/badcode.sh ${{ matrix.run }}
+      - name: Releasing APK files
+        id: release-badcode
+        if: steps.check-gh-badcode.outputs.internet_error == '0'
+        uses: ./.github/actions/release
+
+  patch_rushiranpise:
+    name: Patch rushiranpise
+    if: ${{ github.event.inputs.org == 'rushiranpise' || inputs.org == 'rushiranpise' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Preparing to patch
+        uses: ./.github/actions/preparing
+      - name: Check github connection
+        id: check-gh-rushiranpise
+        run: bash src/etc/connection.sh
+      - name: Patch apk
+        id: patch-rushiranpise
+        if: steps.check-gh-rushiranpise.outputs.internet_error == '0'
+        run: bash src/build/rushiranpise.sh ${{ matrix.run }}
+      - name: Releasing APK files
+        id: release-rushiranpise
+        if: steps.check-gh-rushiranpise.outputs.internet_error == '0'
+        uses: ./.github/actions/release

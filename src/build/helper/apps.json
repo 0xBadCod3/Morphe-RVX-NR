@@ -1,0 +1,16 @@
+{
+	"apkmirror": {
+		"com.adobe.scan.android": {
+			"list_url": "https://www.apkmirror.com/uploads/?appcategory=adobe-scan-pdf-scanner-ocr",
+			"example_url": "https://www.apkmirror.com/apk/adobe/adobe-scan-pdf-scanner-ocr/adobe-scan-pdf-scanner-ocr-26-08-01-release/"
+		},
+		"com.cloudflare.cloudflareoneagent": {
+			"list_url": "https://www.apkmirror.com/uploads/?appcategory=cloudflare-one-agent",
+			"example_url": "https://www.apkmirror.com/apk/cloudflare-inc/cloudflare-one-agent/cloudflare-one-agent-2-5-5-release/"
+		},
+		"com.cloudflare.onedotonedotonedotone": {
+			"list_url": "https://www.apkmirror.com/uploads/?appcategory=1-1-1-1-faster-safer-internet",
+			"example_url": "https://www.apkmirror.com/apk/cloudflare-inc/1-1-1-1-faster-safer-internet/1-1-1-1-faster-safer-internet-6-38-9-release/"
+		}
+	}
+}

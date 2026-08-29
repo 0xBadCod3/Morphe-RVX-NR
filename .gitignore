@@ -1,0 +1,14 @@
+# Ignore build and temporary artifacts
+/download
+/release
+/all-assets
+*.jar
+*.mpp
+*.rvp
+*.zip
+*.tar.gz
+*.tdl
+pup
+tdl
+tg_export*.json
+tg_tmp_*
