@@ -5,6 +5,7 @@ APP_MAP=(
     ["cloudflare-1.1.1.1"]="Cloudflare-1.1.1.1"
     ["cloudflare-one"]="Cloudflare-One"
     ["adobescan"]="AdobeScan"
+    ["adobe-scan"]="AdobeScan"
 )
 
 # Function to get app tag from filename
@@ -22,10 +23,10 @@ get_app_tag() {
         fi
     done
 
-    echo "Other"
+    echo ""
 }
 
-echo "[+] Starting Individual App Release process..."
+echo "[+] Starting Individual App Release process for custom branch..."
 
 echo "[+] Downloading assets from 'all' release..."
 mkdir -p ./all-assets
@@ -51,30 +52,55 @@ for apk in *.apk; do
     [ -e "$apk" ] || continue
 
     filename=$(basename "$apk" .apk)
-    echo "[+] Processing $filename..."
 
-    app_tag=$(get_app_tag "$filename")
-    echo "[+] Mapped to tag: $app_tag"
-
-    app_version=$($AAPT dump badging "$apk" | grep "versionName=" | sed -e "s/.*versionName='//" -e "s/' .*//")
-    if [ -z "$app_version" ]; then
-        echo "[!] Warning: Could not extract version for $apk. Skipping."
+    tag=$(get_app_tag "$filename")
+    if [ -z "$tag" ]; then
         continue
     fi
-    echo "[+] Extracted version: $app_version"
 
-    release_title="$app_tag v$app_version"
-    release_notes="Automated release for $app_tag version $app_version."
+    echo "[+] Processing custom app $filename for tag '$tag'..."
 
-    echo "[+] Checking if release $app_tag exists..."
-    if gh release view "$app_tag" > /dev/null 2>&1; then
-        echo "[+] Release $app_tag exists. Updating title and uploading asset..."
-        gh release edit "$app_tag" --title "$release_title" --notes "$release_notes"
-        gh release upload "$app_tag" "$apk" --clobber
-    else
-        echo "[+] Creating new release $app_tag..."
-        gh release create "$app_tag" "$apk" --title "$release_title" --notes "$release_notes"
+    # Get version
+    version=$($AAPT dump badging "$apk" | grep versionName | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -n 1)
+    if [ -z "$version" ]; then
+        echo "[!] Could not get version for $apk, skipping."
+        continue
     fi
+
+    new_name="${filename}-v${version}.apk"
+    echo "[+] App: $tag, Version: $version, Release Asset: $new_name"
+
+    # Check if exact asset already exists in release
+    existing_assets=$(gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null || true)
+    if echo "$existing_assets" | grep -q "^${new_name}$"; then
+        echo "[*] $new_name already exists in release '$tag', skipping update."
+        continue
+    fi
+
+    cp "$apk" "../$new_name"
+
+    # Create release if not existing with Title and Tag matching app name
+    gh release create "$tag" --title "$tag" --notes "Individual release for $tag" --latest=false 2>/dev/null || true
+    gh release edit "$tag" --latest=false || true
+
+    # Delete old versions of this specific variant
+    if [ -n "$existing_assets" ]; then
+        for asset in $existing_assets; do
+            if [[ "$asset" =~ ^${filename}-v.*\.apk$ ]]; then
+                echo "[+] Deleting old variant asset: $asset"
+                gh release delete-asset "$tag" "$asset" --yes || true
+            fi
+        done
+    fi
+
+    # Upload release asset with version format
+    echo "[+] Uploading $new_name to release '$tag'..."
+    gh release upload "$tag" "../$new_name" --clobber
+    rm -f "../$new_name"
 done
+cd ..
+
+echo "[+] Ensuring 'all' release is marked as latest..."
+gh release edit all --latest || true
 
 echo "[+] Individual App Release process completed."
