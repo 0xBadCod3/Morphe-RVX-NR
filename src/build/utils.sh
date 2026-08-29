@@ -139,6 +139,8 @@ get_patches_key() {
 	includePatches=""
 	excludeLinesFound=false
 	includeLinesFound=false
+	unset version
+	unset lock_version
 
 	local patchDir="src/patches/$1"
 	local patch_name line1 line2
@@ -185,19 +187,25 @@ req() {
     _req "$1" "$2"
 }
 
+# Get patches version for target package
 detect_version() {
 	if [ -z "$version" ] && [ "$lock_version" != "1" ]; then
-	  local jar_prefix="morphe-desktop-" patch_glob="*.mpp"
+	  if [ -f "./patches-list.json" ]; then
+	    version=$(jq -r --arg pkg "$1" '.patches[]?.compatiblePackages[]? | select(.packageName == $pkg) | .targets[]?.version // empty' ./patches-list.json 2>/dev/null | grep -v '^any$' | sort -V | tail -n1)
+	  fi
 
-	  if [[ $(ls "${jar_prefix}"*.jar 2>/dev/null) =~ ${jar_prefix}([0-9]+) ]]; then
-	    list_patches_flags="list-patches --with-packages --with-versions --with-options --patches"
-	    version=$(java -jar "${jar_prefix}"*.jar $list_patches_flags $patch_glob | awk -v pkg="$1" '
-		  BEGIN { found = 0; printing = 0 }
-		  /^Index:/ { if (printing) exit; found = 0 }
-		  /Package name: / { if ($3 == pkg) found = 1 }
-		  /Compatible versions:/ { if (found) printing = 1; next }
-		  printing && $1 ~ /^[0-9]+\./ { print $1 }
-		' | sort -V | tail -n1)
+	  if [ -z "$version" ]; then
+	    local jar_prefix="morphe-desktop-" patch_glob="*.mpp"
+
+	    if [[ $(ls "${jar_prefix}"*.jar 2>/dev/null) =~ ${jar_prefix}([0-9]+) ]]; then
+	      list_patches_flags="list-patches --with-packages --with-versions --with-options --patches"
+	      version=$(java -jar "${jar_prefix}"*.jar $list_patches_flags $patch_glob | awk -v pkg="$1" '
+		    /^Index:/ { in_pkg = 0; in_vers = 0 }
+		    /Package name:/ { in_pkg = ($3 == pkg); in_vers = 0 }
+		    /Compatible versions:/ { if (in_pkg) in_vers = 1; else in_vers = 0; next }
+		    in_vers && $1 ~ /^[0-9]+\./ { print $1 }
+		  ' | sort -V | tail -n1)
+	    fi
 	  fi
 	fi
 }
@@ -276,6 +284,7 @@ get_apk() {
 	local pkg_type=${3:-apk} arch=${4:-} dpi=${5:-} minver=${6:-}
 	local allow_near_version=${near_version:-0}
 	unset near_version
+	unset version
 	local base_url="https://www.apkmirror.com"
 	local html=""
 
