@@ -1,0 +1,50 @@
+name: Custom - 2. Check new patch
+permissions: write-all
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Check new patch
+    runs-on: ubuntu-latest
+    env:
+      repository: ${{ github.repository }}
+    steps:
+      - name: Checkout custom branch
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: custom
+      - name: Check github connection
+        id: check-gh
+        run: bash src/etc/connection.sh
+      - name: Check new patch BadCode
+        id: check-badcode
+        if: steps.check-gh.outputs.internet_error == '0'
+        run: bash src/etc/ci.sh 0xBadCod3/badcode-patches latest cloudflare-1.1.1.1-badcode.apk
+      - name: Check new patch rushiranpise
+        id: check-rushiranpise
+        if: steps.check-gh.outputs.internet_error == '0'
+        run: bash src/etc/ci.sh rushiranpise/morphe-patches latest adobescan-rushiranpise.apk
+    outputs:
+      check_badcode: ${{ steps.check-badcode.outputs.new_patch }}
+      check_rushiranpise: ${{ steps.check-rushiranpise.outputs.new_patch }}
+
+  Patch-BadCode:
+    name: Patch BadCode Apps
+    needs: check
+    if: ${{ needs.check.outputs.check_badcode == 1 }}
+    uses: ./.github/workflows/custom-manual-patch.yml
+    secrets: inherit
+    with:
+      org: "BadCode"
+
+  Patch-Rushiranpise:
+    name: Patch rushiranpise Apps
+    needs: check
+    if: ${{ needs.check.outputs.check_rushiranpise == 1 }}
+    uses: ./.github/workflows/custom-manual-patch.yml
+    secrets: inherit
+    with:
+      org: "rushiranpise"
