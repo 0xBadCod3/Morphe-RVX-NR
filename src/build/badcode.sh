@@ -4,7 +4,8 @@ source ./src/build/utils.sh
 
 badcode_dl() {
 	dl_gh "morphe-desktop" "MorpheApp" "latest"
-	dl_gh "badcode-patches" "0xBadCod3" "latest"
+	# Download Morphe patches from 0xBadCod3
+	dl_gh "morphe-patches" "0xBadCod3" "latest"
 }
 
 1() {

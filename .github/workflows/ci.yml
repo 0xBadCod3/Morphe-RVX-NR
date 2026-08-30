@@ -20,7 +20,7 @@ jobs:
       - name: Check new patch BadCode
         id: check-badcode
         if: steps.check-gh.outputs.internet_error == '0'
-        run: bash src/etc/ci.sh 0xBadCod3/badcode-patches latest cloudflare-1.1.1.1-badcode.apk
+        run: bash src/etc/ci.sh 0xBadCod3/morphe-patches latest cloudflare-1.1.1.1-badcode.apk
       - name: Check new patch rushiranpise
         id: check-rushiranpise
         if: steps.check-gh.outputs.internet_error == '0'

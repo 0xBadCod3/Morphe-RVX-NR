@@ -6,7 +6,7 @@ Automated build repository for custom patched Android applications.
 
 ### 🌐 Cloudflare 1.1.1.1
 - **Package:** `com.cloudflare.onedotonedotonedotone`
-- **Source:** [0xBadCod3/badcode-patches](https://github.com/0xBadCod3/badcode-patches)
+- **Source:** [0xBadCod3/morphe-patches](https://github.com/0xBadCod3/morphe-patches)
 - **Features:** Telemetry disabled, Firebase removed, WARP+ Unlimited UI spoofed.
 - **Download:** [cloudflare-1.1.1.1-badcode.apk](../../releases/download/all/cloudflare-1.1.1.1-badcode.apk) | [Individual Release](../../releases/tag/Cloudflare-1.1.1.1)
 
@@ -14,7 +14,7 @@ Automated build repository for custom patched Android applications.
 
 ### 🛡️ Cloudflare One Agent
 - **Package:** `com.cloudflare.cloudflareoneagent`
-- **Source:** [0xBadCod3/badcode-patches](https://github.com/0xBadCod3/badcode-patches)
+- **Source:** [0xBadCod3/morphe-patches](https://github.com/0xBadCod3/morphe-patches)
 - **Features:** Firebase & telemetry completely removed.
 - **Download:** [cloudflare-one-badcode.apk](../../releases/download/all/cloudflare-one-badcode.apk) | [Individual Release](../../releases/tag/Cloudflare-One)
 
@@ -30,5 +30,5 @@ Automated build repository for custom patched Android applications.
 
 ## ⚙️ Upstream Sources
 - [Morphe](https://github.com/MorpheApp)
-- [0xBadCod3/badcode-patches](https://github.com/0xBadCod3/badcode-patches)
+- [0xBadCod3/morphe-patches](https://github.com/0xBadCod3/morphe-patches)
 - [rushiranpise/morphe-patches](https://github.com/rushiranpise/morphe-patches)
